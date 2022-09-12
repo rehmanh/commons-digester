@@ -27,48 +27,52 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.digester3.binder.AbstractRulesModule;
+import org.apache.commons.digester3.binder.RuleProvider;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.xml.sax.Attributes;
+
+import static org.mockito.Mockito.*;
 
 /**
  * Tests namespace snapshotting.
  */
 
-public class NamespaceSnapshotTestCase
-{
+public class NamespaceSnapshotTestCase {
 
-    /**
-     * A test case specific helper rule.
-//        static class NamespaceSnapshotRule
-//        extends Rule
-//    {
-//        /**
-//         * @see Rule#begin(String, String, Attributes)
-//         */
-//        @Override
-//        public final void begin( final String namespace, final String name, final Attributes attributes )
-//        {
-//            final Digester d = getDigester();
-//            final Map<String, String> namespaces = d.getCurrentNamespaces();
-//            ( (NamespacedBox) d.peek() ).setNamespaces( namespaces );
-//        }
-//
-//        public static class Provider implements RuleProvider<NamespaceSnapshotRule>
-//        {
-//
-//            /**
-//             * {@inheritDoc}
-//             */
-//            @Override
-//            public NamespaceSnapshotRule get()
-//            {
-//                return new NamespaceSnapshotRule();
-//            }
-//
-//        }
-//
-//    }
-//
+        // A test case specific helper rule.
+        static class NamespaceSnapshotRule
+        extends Rule {
+        /**
+         * @see Rule#begin(String, String, Attributes)
+         */
+        @Override
+        public final void begin( final String namespace, final String name, final Attributes attributes )
+        {
+            final Digester d = getDigester();
+            final Map<String, String> namespaces = d.getCurrentNamespaces();
+            ( (NamespacedBox) d.peek() ).setNamespaces( namespaces );
+        }
+
+        public static class Provider implements RuleProvider<NamespaceSnapshotRule>
+        {
+
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public NamespaceSnapshotRule get()
+            {
+                return new NamespaceSnapshotRule();
+            }
+
+        }
+
+    }
+
 
     /**
      * Namespace snapshot test case.
@@ -77,6 +81,27 @@ public class NamespaceSnapshotTestCase
     public void testNamespaceSnapshots()
         throws Exception
     {
+        final Rule rule = mock(Rule.class);
+        final Digester d = mock(Digester.class);
+        when(rule.getDigester()).thenReturn(d);
+
+        doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock args) throws Throwable {
+                Digester d = rule.getDigester();
+                final Map<String, String> namespaces = d.getCurrentNamespaces();
+                ( (NamespacedBox) d.peek() ).setNamespaces( namespaces );
+                return rule;
+            }
+        }).when(rule).begin(any(String.class), any(String.class), any(Attributes.class));
+
+        final RuleProvider<Rule> ruleProvider = mock(RuleProvider.class);
+        when(ruleProvider.get()).thenAnswer(new Answer<Rule>() {
+            @Override
+            public Rule answer(InvocationOnMock invocationOnMock) throws Throwable {
+                return rule;
+            }
+        });
 
         final Digester digester = newLoader( new AbstractRulesModule()
         {
@@ -88,12 +113,14 @@ public class NamespaceSnapshotTestCase
                     .then()
                     .setProperties()
                     .then()
-                    .addRuleCreatedBy( new org.apache.commons.digester3.helpers.NamespaceSnapshotRule.Provider() );
+                    .addRuleCreatedBy(ruleProvider);
+                    //.addRuleCreatedBy( new NamespaceSnapshotRule.Provider() );
                 forPattern( "box/subBox" ).createObject().ofType( NamespacedBox.class )
                     .then()
                     .setProperties()
                     .then()
-                    .addRuleCreatedBy( new org.apache.commons.digester3.helpers.NamespaceSnapshotRule.Provider() )
+                    .addRuleCreatedBy(ruleProvider)
+                    //.addRuleCreatedBy( new NamespaceSnapshotRule.Provider() )
                     .then()
                     .setNext( "addChild" );
             }
