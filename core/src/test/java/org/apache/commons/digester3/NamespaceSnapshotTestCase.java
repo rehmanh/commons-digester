@@ -43,37 +43,6 @@ import static org.mockito.Mockito.*;
 
 public class NamespaceSnapshotTestCase {
 
-        // A test case specific helper rule.
-        static class NamespaceSnapshotRule
-        extends Rule {
-        /**
-         * @see Rule#begin(String, String, Attributes)
-         */
-        @Override
-        public final void begin( final String namespace, final String name, final Attributes attributes )
-        {
-            final Digester d = getDigester();
-            final Map<String, String> namespaces = d.getCurrentNamespaces();
-            ( (NamespacedBox) d.peek() ).setNamespaces( namespaces );
-        }
-
-        public static class Provider implements RuleProvider<NamespaceSnapshotRule>
-        {
-
-            /**
-             * {@inheritDoc}
-             */
-            @Override
-            public NamespaceSnapshotRule get()
-            {
-                return new NamespaceSnapshotRule();
-            }
-
-        }
-
-    }
-
-
     /**
      * Namespace snapshot test case.
      */
@@ -81,9 +50,7 @@ public class NamespaceSnapshotTestCase {
     public void testNamespaceSnapshots()
         throws Exception
     {
-        final Rule rule = mock(Rule.class);
-        final Digester d = mock(Digester.class);
-        when(rule.getDigester()).thenReturn(d);
+        final Rule rule = spy(Rule.class);
 
         doAnswer(new Answer() {
             @Override
@@ -114,13 +81,11 @@ public class NamespaceSnapshotTestCase {
                     .setProperties()
                     .then()
                     .addRuleCreatedBy(ruleProvider);
-                    //.addRuleCreatedBy( new NamespaceSnapshotRule.Provider() );
                 forPattern( "box/subBox" ).createObject().ofType( NamespacedBox.class )
                     .then()
                     .setProperties()
                     .then()
                     .addRuleCreatedBy(ruleProvider)
-                    //.addRuleCreatedBy( new NamespaceSnapshotRule.Provider() )
                     .then()
                     .setNext( "addChild" );
             }
